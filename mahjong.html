@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>四人麻将计分器（8倍规则）</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", Arial, sans-serif;
+      background: #f8f9fa;
+      padding: 20px;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px #ddd;
+      padding: 24px 24px 60px 24px;
+    }
+    h2 { text-align: center; }
+    label { display: block; margin: 12px 0 4px 0; }
+    select, input[type=number], input[type=text] {
+      width: 100%;
+      padding: 6px;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      min-height: 36px;
+      font-size: 17px;
+      -webkit-appearance: none;
+      background: #fff;
+      box-sizing: border-box;
+    }
+    .scores { display: flex; justify-content: space-between; margin: 18px 0; }
+    .scores div { text-align: center; flex: 1; }
+    #tai-div { text-align: center; margin-bottom: 18px; font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; margin-top: 18px; }
+    th, td { border: 1px solid #e2e2e2; padding: 6px; text-align: center; }
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      background: #1976d2;
+      color: #fff;
+      margin-right: 8px;
+      cursor: pointer;
+      min-height: 44px;
+      font-size: 18px;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    button:active { background: #1565c0; }
+    .reset { background: #b71c1c; }
+    .reset:active { background: #880000; }
+    .footer { margin-top: 24px; text-align: center; font-size: 13px; color: #888; }
+    .player-setup { margin-bottom: 20px; }
+    .player-setup input { width: 90%; display: inline-block; }
+    .player-setup label { display: inline-block; width: 36px; }
+    .hidden { display: none; }
+    #gameoverArea {
+      background: #fffbe6;
+      border: 1.5px solid #ffd700;
+      border-radius: 8px;
+      margin: 20px 0 10px 0;
+      padding: 16px 10px;
+      text-align: center;
+      font-size: 18px;
+      color: #b07d00;
+    }
+    #gameoverArea table {
+      margin: 10px auto 0 auto;
+      width: 90%;
+      font-size: 16px;
+      border: none;
+    }
+    #gameoverArea th, #gameoverArea td {
+      border: none;
+      padding: 3px 8px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>杭州麻将计分器</h2>
+    <div id="setupSection" class="player-setup">
+      <form id="setupForm" autocomplete="off">
+        <div>
+          <label>东</label>
+          <input type="text" id="player-east" placeholder="东家名字" required maxlength="8"
+            autocapitalize="none" autocomplete="off" spellcheck="false" inputmode="text">
+        </div>
+        <div>
+          <label>南</label>
+          <input type="text" id="player-south" placeholder="南家名字" required maxlength="8"
+            autocapitalize="none" autocomplete="off" spellcheck="false" inputmode="text">
+        </div>
+        <div>
+          <label>西</label>
+          <input type="text" id="player-west" placeholder="西家名字" required maxlength="8"
+            autocapitalize="none" autocomplete="off" spellcheck="false" inputmode="text">
+        </div>
+        <div>
+          <label>北</label>
+          <input type="text" id="player-north" placeholder="北家名字" required maxlength="8"
+            autocapitalize="none" autocomplete="off" spellcheck="false" inputmode="text">
+        </div>
+        <div style="margin-top:10px;">
+          <label>首局庄家</label>
+          <select id="firstDealer" required>
+            <option value="东">东</option>
+            <option value="南">南</option>
+            <option value="西">西</option>
+            <option value="北">北</option>
+          </select>
+        </div>
+        <button type="submit">开始</button>
+      </form>
+    </div>
+    <form id="scoreForm" class="hidden" autocomplete="off">
+      <label>胡牌人</label>
+      <select id="winner" required></select>
+      <label>庄家</label>
+      <input type="text" id="dealer" readonly style="background:#eee;">
+      <label>胡牌倍数</label>
+      <select id="multiplier" required>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="4">4</option>
+        <option value="8">8</option>
+        <option value="16">16</option>
+        <option value="32">32</option>
+        <option value="64">64</option>
+      </select>
+      <button type="submit" id="submitScoreBtn">记分</button>
+      <button type="button" class="reset" id="resetBtn">重置</button>
+    </form>
+
+    <div class="scores hidden" id="scoreBoard">
+      <div id="score-east-div"></div>
+      <div id="score-south-div"></div>
+      <div id="score-west-div"></div>
+      <div id="score-north-div"></div>
+    </div>
+    <div id="tai-div" class="hidden" style="text-align:center; margin-bottom:18px; font-weight:bold;">
+      台版区分数：<span id="tai-value">0</span>
+    </div>
+    
+    <table id="historyTable" class="hidden">
+      <thead>
+        <tr>
+          <th>局数</th>
+          <th>胡牌人</th>
+          <th>庄家</th>
+          <th>倍数</th>
+          <th id="th-east"></th>
+          <th id="th-south"></th>
+          <th id="th-west"></th>
+          <th id="th-north"></th>
+          <th>台版区</th>
+        </tr>
+      </thead>
+      <tbody>
+      </tbody>
+    </table>
+
+    <!-- 新增负分提醒区域 -->
+    <div id="gameoverArea" class="hidden"></div>
+
+    <div class="footer">
+      规则：底分50；庄家胡牌向三闲家每人收8倍分，闲家胡牌向庄家收8倍分、向两闲家各收1倍分；胡牌人向台版区支付一半倍数积分。
+    </div>
+  </div>
+  <script>
+    // 玩家数据
+    let playerNames = { '东':'东', '南':'南', '西':'西', '北':'北' };
+    let names = ['东', '南', '西', '北'];
+    let scores = { '东': 50, '南': 50, '西': 50, '北': 50 };
+    let history = [];
+    let currentDealer = '东'; // 当前庄家
+
+    // 更新分数面板
+    function updateScoreBoard() {
+      document.getElementById('score-east-div').innerHTML = playerNames['东'] + "<br><span id='score-east'>" + scores['东'] + "</span>";
+      document.getElementById('score-south-div').innerHTML = playerNames['南'] + "<br><span id='score-south'>" + scores['南'] + "</span>";
+      document.getElementById('score-west-div').innerHTML = playerNames['西'] + "<br><span id='score-west'>" + scores['西'] + "</span>";
+      document.getElementById('score-north-div').innerHTML = playerNames['北'] + "<br><span id='score-north'>" + scores['北'] + "</span>";
+      // 台版区分数
+      let taiSum = history.reduce((sum, row) => sum + (row.taiValue || 0), 0);
+      document.getElementById('tai-value').textContent = Math.round(taiSum * 100) / 100;
+    }
+    function renderHistory() {
+      const tbody = document.querySelector('#historyTable tbody');
+      tbody.innerHTML = '';
+      history.forEach((row, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${idx+1}</td>
+          <td>${playerNames[row.winner]}</td>
+          <td>${playerNames[row.dealer]}</td>
+          <td>${row.multiplier}</td>
+          <td>${row.scores['东']>0?'+':''}${row.scores['东']}</td>
+          <td>${row.scores['南']>0?'+':''}${row.scores['南']}</td>
+          <td>${row.scores['西']>0?'+':''}${row.scores['西']}</td>
+          <td>${row.scores['北']>0?'+':''}${row.scores['北']}</td>
+          <td>${row.taiValue>0?'+':''}${row.taiValue}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    function updateWinnerSelect() {
+      const winnerSel = document.getElementById('winner');
+      winnerSel.innerHTML = '';
+      names.forEach(pos => {
+        let opt = document.createElement('option');
+        opt.value = pos;
+        opt.textContent = playerNames[pos];
+        winnerSel.appendChild(opt);
+      });
+    }
+    function updateDealerInput() {
+      document.getElementById('dealer').value = playerNames[currentDealer];
+    }
+    function updateTableHeaders() {
+      document.getElementById('th-east').textContent = playerNames['东'];
+      document.getElementById('th-south').textContent = playerNames['南'];
+      document.getElementById('th-west').textContent = playerNames['西'];
+      document.getElementById('th-north').textContent = playerNames['北'];
+    }
+
+    // 玩家设置表单
+    document.getElementById('setupForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      playerNames['东'] = document.getElementById('player-east').value.trim() || '东';
+      playerNames['南'] = document.getElementById('player-south').value.trim() || '南';
+      playerNames['西'] = document.getElementById('player-west').value.trim() || '西';
+      playerNames['北'] = document.getElementById('player-north').value.trim() || '北';
+      currentDealer = document.getElementById('firstDealer').value;
+      scores = { '东': 50, '南': 50, '西': 50, '北': 50 };
+      history = [];
+      // 初始化表单与显示
+      updateWinnerSelect();
+      updateDealerInput();
+      updateScoreBoard();
+      updateTableHeaders();
+      renderHistory();
+      // 显示主界面
+      document.getElementById('setupSection').classList.add('hidden');
+      document.getElementById('scoreForm').classList.remove('hidden');
+      document.getElementById('scoreBoard').classList.remove('hidden');
+      document.getElementById('historyTable').classList.remove('hidden');
+      document.getElementById('tai-div').classList.remove('hidden');
+      // 启用记分按钮
+      document.getElementById('submitScoreBtn').disabled = false;
+      // 隐藏负分区域
+      document.getElementById('gameoverArea').classList.add('hidden');
+    });
+
+    // 记分表单
+    document.getElementById('scoreForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      const winner = document.getElementById('winner').value;
+      const dealer = names.find(pos => playerNames[pos] === document.getElementById('dealer').value) || '东';
+      let multiplier = parseInt(document.getElementById('multiplier').value, 10);
+      if (isNaN(multiplier) || multiplier < 1) multiplier = 1;
+
+      let round = { '东': 0, '南': 0, '西': 0, '北': 0 };
+      let taiValue = 0;
+      let winner_change = false;
+
+      if (winner === dealer) {
+        // 庄家胡
+        winner_change = false;
+        names.forEach(name => {
+          if (name === dealer) {
+            round[name] = 8 * multiplier * 3;
+            if (multiplier > 1){
+                taiValue = multiplier / 2;
+                round[name] = round[name] - taiValue;
+            }
+          } else {
+            round[name] = -8 * multiplier;
+          }
+        });
+      } else {
+        // 闲家胡
+        winner_change = true;
+        names.forEach(name => {
+          if (name === winner) {
+            round[name] = 8 * multiplier + 2 * multiplier;
+            if (multiplier > 1){
+                taiValue = multiplier / 2;
+                round[name] = round[name] - taiValue;
+            }
+          } else if (name === dealer) {
+            round[name] = -8 * multiplier;
+          } else {
+            round[name] = -1 * multiplier;
+          }
+        });
+      }
+
+      // 四舍五入台版区分数（如倍数为奇数时）
+      round[winner] = Math.round(round[winner] * 100) / 100;
+      taiValue = Math.round(taiValue * 100) / 100;
+
+      // 累计分数
+      names.forEach(name => {
+        scores[name] += round[name];
+      });
+      history.push({
+        winner, dealer, multiplier,
+        scores: { ...round },
+        taiValue: taiValue
+      });
+      updateScoreBoard();
+      renderHistory();
+      // 自动切换庄家为本局胡牌人
+      currentDealer = winner;
+      updateDealerInput();
+      // 重置倍数为1
+      document.getElementById('multiplier').value = "1";
+
+      // 检查是否有玩家分数为负，若有则禁用记分按钮并显示区域
+      let loser = names.find(name => scores[name] < 0);
+      if (loser && winner_change) {
+        alert(playerNames[loser] + "分数为负，游戏结束！");
+        document.getElementById('submitScoreBtn').disabled = true;
+        showGameoverArea();
+      }
+    });
+
+    // 显示负分区域
+    function showGameoverArea() {
+      let html = `<div style="font-size:20px;font-weight:bold;margin-bottom:10px;">该计分啦</div>`;
+      html += `<table><tr>`;
+      names.forEach(n => html += `<th>${playerNames[n]}</th>`);
+      html += `</tr><tr>`;
+      names.forEach(n => html += `<td>${scores[n] - 50}</td>`);
+      html += `</tr></table>`;
+      document.getElementById('gameoverArea').innerHTML = html;
+      document.getElementById('gameoverArea').classList.remove('hidden');
+    }
+
+    // 重置
+    document.getElementById('resetBtn').addEventListener('click', function() {
+      if (!confirm('确定要重置所有分数和历史记录吗？')) return;
+      // 回到玩家设置界面
+      document.getElementById('setupSection').classList.remove('hidden');
+      document.getElementById('scoreForm').classList.add('hidden');
+      document.getElementById('scoreBoard').classList.add('hidden');
+      document.getElementById('historyTable').classList.add('hidden');
+      document.getElementById('tai-div').classList.add('hidden');
+      // 清空分数和历史
+      scores = { '东': 50, '南': 50, '西': 50, '北': 50 };
+      history = [];
+      // 清空玩家输入
+      document.getElementById('firstDealer').value = '东';
+      updateScoreBoard();
+      // 启用记分按钮
+      document.getElementById('submitScoreBtn').disabled = false;
+      // 隐藏负分区域
+      document.getElementById('gameoverArea').classList.add('hidden');
+    });
+
+    // 输入框聚焦时自动滚动进视野（iOS体验优化）
+    document.querySelectorAll('input[type="text"]').forEach(inp => {
+      inp.addEventListener('focus', function() {
+        setTimeout(() => {
+          inp.scrollIntoView({behavior: 'smooth', block: 'center'});
+        }, 200);
+      });
+    });
+
+    // 初始化
+    updateScoreBoard();
+    renderHistory();
+    updateWinnerSelect();
+    updateDealerInput();
+    updateTableHeaders();
+  </script>
+</body>
+</html>
