@@ -87,7 +87,7 @@
 </head>
 <body>
   <div class="container">
-    <h2>杭州麻将计分器</h2>
+    <h2>杭州麻将盘分计分器</h2>
     <div id="setupSection" class="player-setup">
       <form id="setupForm" autocomplete="off">
         <div>
@@ -184,6 +184,37 @@
     let history = [];
     let currentDealer = '东'; // 当前庄家
 
+    // 保存数据到localStorage
+    function saveGameData() {
+      localStorage.setItem('mj_playerNames', JSON.stringify(playerNames));
+      localStorage.setItem('mj_scores', JSON.stringify(scores));
+      localStorage.setItem('mj_history', JSON.stringify(history));
+      localStorage.setItem('mj_currentDealer', currentDealer);
+    }
+    // 恢复数据
+    function loadGameData() {
+      if (localStorage.getItem('mj_playerNames')) {
+        playerNames = JSON.parse(localStorage.getItem('mj_playerNames'));
+        scores = JSON.parse(localStorage.getItem('mj_scores'));
+        history = JSON.parse(localStorage.getItem('mj_history'));
+        currentDealer = localStorage.getItem('mj_currentDealer');
+        // 恢复到主界面
+        document.getElementById('setupSection').classList.add('hidden');
+        document.getElementById('scoreForm').classList.remove('hidden');
+        document.getElementById('scoreBoard').classList.remove('hidden');
+        document.getElementById('historyTable').classList.remove('hidden');
+        document.getElementById('tai-div').classList.remove('hidden');
+        // 恢复UI
+        updateWinnerSelect();
+        updateDealerInput();
+        updateScoreBoard();
+        updateTableHeaders();
+        renderHistory();
+        document.getElementById('submitScoreBtn').disabled = false;
+        document.getElementById('gameoverArea').classList.add('hidden');
+      }
+    }
+
     // 更新分数面板
     function updateScoreBoard() {
       document.getElementById('score-east-div').innerHTML = playerNames['东'] + "<br><span id='score-east'>" + scores['东'] + "</span>";
@@ -259,6 +290,7 @@
       document.getElementById('submitScoreBtn').disabled = false;
       // 隐藏负分区域
       document.getElementById('gameoverArea').classList.add('hidden');
+      saveGameData();
     });
 
     // 记分表单
@@ -326,6 +358,8 @@
       // 重置倍数为1
       document.getElementById('multiplier').value = "1";
 
+      saveGameData();
+
       // 检查是否有玩家分数为负，若有则禁用记分按钮并显示区域
       let loser = names.find(name => scores[name] < 0);
       if (loser && winner_change) {
@@ -366,6 +400,11 @@
       document.getElementById('submitScoreBtn').disabled = false;
       // 隐藏负分区域
       document.getElementById('gameoverArea').classList.add('hidden');
+      // 清除本地存储
+      localStorage.removeItem('mj_playerNames');
+      localStorage.removeItem('mj_scores');
+      localStorage.removeItem('mj_history');
+      localStorage.removeItem('mj_currentDealer');
     });
 
     // 输入框聚焦时自动滚动进视野（iOS体验优化）
@@ -383,6 +422,11 @@
     updateWinnerSelect();
     updateDealerInput();
     updateTableHeaders();
+
+    // 页面加载时尝试恢复
+    window.onload = function() {
+      loadGameData();
+    };
   </script>
 </body>
 </html>
